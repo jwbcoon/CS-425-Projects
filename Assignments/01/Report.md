@@ -6,9 +6,9 @@ Here's a table showing the improvements I did to make the application go faster.
 
 | Version | Time | Speedup | Memory (KB) | Changes |
 | :-----: | ---- | :-----: | :------: | ------- |
-| [01](01.cpp) | 3.66s | &mdash; | 1041752 | Initial version - no changes |
-| 02 | 1.78s | 2.05x | 1041916 | Compiled with -Os to see about minimizing memory usage |
-| [03](03.cpp) | 3.67 | .99x| 1041844 | using reciprocals as compared to divisions
+| [01](01.cpp) | 9.51s | &mdash; | 1041336 | Initial version - no changes. |
+| [02](01.cpp) | 1.93s | 2.05x | 1041332 | Compiled with -Ofast to see about maximizing speed at (expected) cost to memory &mdash; apparently there was no memory tradeoff here. |
+| [03](01.cpp) | 2.19s | .99x| 1041336 | Compiled with -O3 for aggressive, imprecise optimization for speed. |
 
 ## Profiling Analysis
 
