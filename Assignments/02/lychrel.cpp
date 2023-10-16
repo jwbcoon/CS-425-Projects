@@ -31,6 +31,7 @@ using Records = std::vector<Record>;
 
 // Application specific constants
 const size_t MaxIterations = 7500;
+const size_t MaxThreads = 250; // Calculating this programmatically caused bugs, so hard code 5% of data.size()!!
 
 //
 // --- main ---
@@ -40,7 +41,6 @@ int main() {
 
     std::cerr << "Processing " << data.size() << " values ...\n";
 
-    const size_t MaxThreads = (5 * data.size()) / 100;
     const size_t ThreadChunkSize = (data.size() + (1 - MaxThreads % 2)) / MaxThreads; // Spread thread work surface area as evenly as possible
     size_t maxIter = 0;  // Records the current maximum number of iterations
     Records records; // list of values that took maxIter iterations
