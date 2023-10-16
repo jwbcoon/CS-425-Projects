@@ -150,9 +150,9 @@ class LychrelData {
             
             if (index >= _size) { return false; }
 
-            if (index + count >= _size) {
+/*            if (index + count >= _size) {
                 count = _size - index;
-            }
+            }*/
             _current += count;
         }
 
