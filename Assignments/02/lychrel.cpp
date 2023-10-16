@@ -44,18 +44,18 @@ int main() {
     size_t maxIter = 0;  // Records the current maximum number of iterations
     Records records; // list of values that took maxIter iterations
     const size_t ThreadChunkSize = (data.size() + (1 - MaxThreads % 2)) / MaxThreads; // Spread thread work surface area as evenly as possible
-    std::barrier barrier(MaxThreads);
+    std::barrier barrier{MaxThreads};
     std::mutex mutex;
     int lastThreadID = MaxThreads - 1;
 
     // Iterate across all available data values, processing them using the 
     //   reverse-digits and sum technique described in class.
     for (auto tid = 0; tid < MaxThreads; tid++) {
-        std::thread t{[=](&records, &maxIter, &barrier) {
+        std::thread t{[=, &data, &records, &maxIter, &barrier, &mutex]() {
             auto start = tid * ThreadChunkSize;
             auto end = std::min(data.size(), start + ThreadChunkSize);
             
-            for (auto i = 0; i < data.size(); ++i) {
+            for (auto i = start; i < end; ++i) {
                 Number number = data[i];
                 
                 size_t iter = 0;
@@ -66,7 +66,7 @@ int main() {
                 //   is a palindrome, stop processing
                 while (!n.is_palindrome() && ++iter < MaxIterations) {
                     Number sum(n.size());   // Value used to store current sum of digits
-                    Number r = n.reverse(); // reverse the digits of the value
+                    n.reverse(); // reverse the digits of the value
 
                     // An iterator pointing to the first digit of the reversed
                     //   value.  This iterator will be incremented to basically
@@ -110,13 +110,13 @@ int main() {
                 //   tha the current maximum (maxIter) or we've exceeded the number
                 //   of permissible iterations, ignore the current result and move
                 //   onto the next number.
-                if (iter < maxIter || iter == MaxIterations) { continue; }
+                if (iter <= maxIter || iter == MaxIterations) { continue; }
 
                 // Otherwise update our records, which possibly means discarding
                 //   our current maximum and rebuilding our records list.
                 Record record{number, n};
                 if (iter > maxIter) {
-                    std::lockguard lock{mutex};
+                    std::lock_guard lock{mutex};
                     records.clear();
                     maxIter = iter;
                 }
