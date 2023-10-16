@@ -31,7 +31,7 @@ using Records = std::vector<Record>;
 
 // Application specific constants
 const size_t MaxIterations = 7500;
-const size_t MaxThreads = 10;
+const size_t MaxThreads = 20;
 
 //
 // --- main ---
@@ -41,9 +41,9 @@ int main() {
 
     std::cerr << "Processing " << data.size() << " values ...\n";
 
+    const size_t ThreadChunkSize = (data.size() + (1 - MaxThreads % 2)) / MaxThreads; // Spread thread work surface area as evenly as possible
     size_t maxIter = 0;  // Records the current maximum number of iterations
     Records records; // list of values that took maxIter iterations
-    const size_t ThreadChunkSize = (data.size() + (1 - MaxThreads % 2)) / MaxThreads; // Spread thread work surface area as evenly as possible
     std::barrier barrier{MaxThreads};
     std::mutex mutex;
     int lastThreadID = MaxThreads - 1;
@@ -52,12 +52,10 @@ int main() {
     //   reverse-digits and sum technique described in class.
     for (auto tid = 0; tid < MaxThreads; tid++) {
         std::thread t{[=, &data, &records, &maxIter, &barrier, &mutex]() {
-            auto start = tid * ThreadChunkSize;
-            auto end = std::min(data.size(), start + ThreadChunkSize);
+            std::vector<Number> workChunk(ThreadChunkSize, Number());
+            data.getNext(std::min(ThreadChunkSize, data.size()), workChunk);
             
-            for (auto i = start; i < end; ++i) {
-                Number number = data[i];
-                
+            for (auto& number : workChunk) {
                 size_t iter = 0;
                 Number n = number;
 
