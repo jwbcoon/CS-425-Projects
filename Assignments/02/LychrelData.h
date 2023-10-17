@@ -110,7 +110,7 @@ class LychrelData {
     // (readonly) Array indexing operator
     Number operator[] (size_t index) const {
         assert(index < _size);
-        return Number(&_digits[start], _indices[index + 1] - _indices[index]);
+        return Number(&_digits[index], _indices[index + 1] - _indices[index]);
     }
 
     // Thread-safe single number retrieval function.  Returns true, storing
