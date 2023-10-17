@@ -55,12 +55,9 @@ int main() {
         if (consumed < data.size() / 4 && consumed + bite >= data.size() / 4) std::cout << "Consumed is " << consumed << std::endl;
         if (consumed < data.size() / 2 && consumed + bite >= data.size() / 2) std::cout << "Consumed is " << consumed << std::endl;
         if (consumed < (3 * data.size()) / 4 && consumed + bite >= (3 * data.size()) / 4) std::cout << "Consumed is " << consumed << std::endl;
-        if (consumed + bite < data.size())
-           consumed += bite;
-        else {
-            bite = data.size() - consumed - 1;
-            consumed = data.size();
-        }
+        if (consumed + bite > data.size())
+            bite = data.size() - consumed;
+        consumed += bite;
         return bite;
     };
 
