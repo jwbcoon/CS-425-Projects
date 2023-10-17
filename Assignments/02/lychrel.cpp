@@ -57,7 +57,10 @@ int main() {
         if (consumed < (3 * data.size()) / 4 && consumed + bite >= (3 * data.size()) / 4) std::cout << "Consumed is " << consumed << std::endl;
         if (consumed + bite < data.size())
            consumed += bite;
-        else consumed += data.size() - consumed - 1;
+        else {
+            bite = data.size() - consumed - 1;
+            consumed = data.size();
+        }
         return bite;
     };
 
@@ -79,11 +82,11 @@ int main() {
                 {
                     std::lock_guard lock{mutex};
                     start = consumed + (consumed > 0); // Add 1 if after 1st iteration to avoid overlap
-                    std::cout << "Thread " << tid << " beginning task with Chunk Size " << consume(tid) << std::endl;
-                    end = consumed + 1;
+                    end = consume(tid) + start;
+                    std::cout << "Thread " << tid << " beginning task with Chunk Size " << end - start << std::endl;
                 }
 
-                for (int i = start; i < end; i++) {
+                for (int i = start; i <= end; i++) {
                     Number number = data[i];
                     
                     size_t iter = 0;
