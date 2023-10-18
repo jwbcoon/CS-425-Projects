@@ -47,24 +47,22 @@ int main() {
     std::barrier barrier{MaxThreads};
     std::mutex mutex;
     int lastThreadID = MaxThreads - 1;
-    std::atomic<size_t> consumed = 0;
     uint16_t chunkSize = [&]() { uint16_t result = 1; while (result << 1 < data.size() / MaxThreads) result <<= 1; return result; } ();
     std::vector<uint16_t> decays(MaxThreads, chunkSize);
+    std::atomic<size_t> consumed = 0;
     size_t chunkSum = 0;
 
 
-    auto checkpoint = [&](const uint16_t decay) {
-        if (consumed > data.size() / 4 && decay > chunkSize >> 1)
-            return data.size() / 4;
-        if (consumed > data.size() / 2 && decay > chunkSize >> 2)
-            return data.size() / 2;
-        if (consumed > (3 * data.size()) / 4 && decay > chunkSize >> 3)
-            return (3 * data.size()) / 4;
-        return data.size() - 1;
+    auto checkpoints = [&](const uint16_t decay) {
+        int numShifts = 0;
+        if (consumed + decay > data.size() / 4 && decay > chunkSize >> 1) numShifts++;
+        if (consumed + decay > data.size() / 2 && decay > chunkSize >> 2) numShifts++;
+        if (consumed + decay > (3 * data.size()) / 4 && decay > chunkSize >> 3) numShifts++;
+        return numShifts;
     };
 
     auto consume = [&](const size_t &tid) {
-        auto bite = decays[tid] >>= consumed > checkpoint(decays[tid]);
+        auto bite = decays[tid] >>= checkpoints(decays[tid]);
         if (consumed + bite >= data.size())
             bite = data.size() - consumed - 1;
         consumed += bite;
@@ -84,8 +82,8 @@ int main() {
                     start = consumed; // Add 1 if after 1st iteration to avoid overlap
                     end = consume(tid) + start;
                     chunkSum += end - start;
-                    // std::cout << "Thread " << tid << " beginning task with Chunk Size " << end - start << std::endl;
-                    // std::cout << "Total processed: " << chunkSum << std::endl;
+                    //std::cout << "Thread " << tid << " beginning task with Chunk Size " << end - start << std::endl;
+                    //std::cout << "Total processed: " << chunkSum << std::endl;
                 }
 
                 for (auto i = start; i < end; i++) {
