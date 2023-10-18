@@ -48,14 +48,15 @@ int main() {
     std::mutex mutex;
     int lastThreadID = MaxThreads - 1;
     std::atomic<size_t> consumed = 0;
-    std::vector<size_t> decays(MaxThreads, 4096);
+    uint16_t chunkSize = 4096;
+    std::vector<uint16_t> decays(MaxThreads, chunkSize);
 
     auto consume = [&](const size_t &tid) {
-        auto bite = decays[tid] = 2 << decays[tid];
-        if (consumed < data.size() / 4 && consumed + bite >= data.size() / 4) std::cout << "Consumed is " << consumed << std::endl;
-        if (consumed < data.size() / 2 && consumed + bite >= data.size() / 2) std::cout << "Consumed is " << consumed << std::endl;
-        if (consumed < (3 * data.size()) / 4 && consumed + bite >= (3 * data.size()) / 4) std::cout << "Consumed is " << consumed << std::endl;
-        if (consumed + bite > data.size())
+	if (consumed > data.size() / 4 && decays[tid] > chunkSize >> 1) decays[tid] >>= 1;
+	if (consumed > data.size() / 2 && decays[tid] > chunkSize >> 2) decays[tid] >>= 1;
+	if (consumed > (3 * data.size()) / 4 && decays[tid] > chunkSize >> 3) decays[tid] >>= 1;
+        auto bite = decays[tid];
+        if (consumed + bite >= data.size())
             bite = data.size() - consumed - 1;
         consumed += bite;
         return bite;
@@ -144,7 +145,7 @@ int main() {
 
                     records.push_back(record);
                 }
-            } while (consumed < data.size());
+            } while (consumed < data.size() - 1);
 
             barrier.arrive_and_wait();
         }};
