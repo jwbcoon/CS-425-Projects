@@ -50,11 +50,22 @@ int main() {
     std::atomic<size_t> consumed = 0;
     uint16_t chunkSize = 4096;
     std::vector<uint16_t> decays(MaxThreads, chunkSize);
+    int chunkSum = 0;
+
+
+    auto consumedAll = [&]() {
+        size_t status;
+        {
+          std::lock_guard lock{mutex};
+          status = consumed >= data.size() - 1;
+        }
+        return status;
+    };
 
     auto consume = [&](const size_t &tid) {
-	if (consumed > data.size() / 4 && decays[tid] > chunkSize >> 1) decays[tid] >>= 1;
-	if (consumed > data.size() / 2 && decays[tid] > chunkSize >> 2) decays[tid] >>= 1;
-	if (consumed > (3 * data.size()) / 4 && decays[tid] > chunkSize >> 3) decays[tid] >>= 1;
+        if (consumed > data.size() / 4 && decays[tid] > chunkSize >> 1) decays[tid] >>= 1;
+        if (consumed > data.size() / 2 && decays[tid] > chunkSize >> 2) decays[tid] >>= 1;
+        if (consumed > (3 * data.size()) / 4 && decays[tid] > chunkSize >> 3) decays[tid] >>= 1;
         auto bite = decays[tid];
         if (consumed + bite >= data.size())
             bite = data.size() - consumed - 1;
@@ -74,10 +85,12 @@ int main() {
                     std::lock_guard lock{mutex};
                     start = consumed + (consumed > 0); // Add 1 if after 1st iteration to avoid overlap
                     end = consume(tid) + start;
+                    chunkSum += end - start;
                     std::cout << "Thread " << tid << " beginning task with Chunk Size " << end - start << std::endl;
+                    std::cout << "Total processed: " << chunkSum << std::endl;
                 }
 
-                for (int i = start; i <= end; i++) {
+                for (int i = start; i <= end - consumedAll(); i++) {
                     Number number = data[i];
                     
                     size_t iter = 0;
@@ -145,7 +158,7 @@ int main() {
 
                     records.push_back(record);
                 }
-            } while (consumed < data.size() - 1);
+            } while (!consumedAll());
 
             barrier.arrive_and_wait();
         }};
