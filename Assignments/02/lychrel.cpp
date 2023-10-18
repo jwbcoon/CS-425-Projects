@@ -48,7 +48,7 @@ int main() {
     std::mutex mutex;
     int lastThreadID = MaxThreads - 1;
     std::atomic<size_t> consumed = 0;
-    uint16_t chunkSize = 4096;
+    uint16_t chunkSize = [&]() { uint16_t result = 1; while (result << 1 < data.size() / MaxThreads) result <<= 1; return result; } ();
     std::vector<uint16_t> decays(MaxThreads, chunkSize);
     int chunkSum = 0;
 
