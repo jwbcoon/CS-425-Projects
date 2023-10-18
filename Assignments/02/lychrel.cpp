@@ -48,24 +48,18 @@ int main() {
     std::mutex mutex;
     int lastThreadID = MaxThreads - 1;
     std::atomic<size_t> consumed = 0;
-    bool threadBiteOrderFlag = true;
+    std::vector<size_t> decays(MaxThreads, 4096);
 
-    auto consume = [&data, &consumed, &threadBiteOrderFlag](const size_t &tid) {
-        auto bite = 2 << ((threadBiteOrderFlag ? MaxThreads - tid : tid) + tid % 2 + 1);
+    auto consume = [&](const size_t &tid) {
+        auto bite = decays[tid] = 2 << decays[tid];
         if (consumed < data.size() / 4 && consumed + bite >= data.size() / 4) std::cout << "Consumed is " << consumed << std::endl;
         if (consumed < data.size() / 2 && consumed + bite >= data.size() / 2) std::cout << "Consumed is " << consumed << std::endl;
         if (consumed < (3 * data.size()) / 4 && consumed + bite >= (3 * data.size()) / 4) std::cout << "Consumed is " << consumed << std::endl;
         if (consumed + bite > data.size())
-            bite = data.size() - consumed;
+            bite = data.size() - consumed - 1;
         consumed += bite;
         return bite;
     };
-
-
-    /*for (int tid = 0; tid < MaxThreads; tid++) {
-        std::cout << "Consumed: " << consumed << std::endl;
-        std::cout << "Bite: " << consume(tid) << std::endl;
-    }*/
 
 
 
@@ -75,7 +69,6 @@ int main() {
         std::thread t{[&, tid]() {
             do {
                 size_t start, end;
-                threadBiteOrderFlag = !threadBiteOrderFlag;
                 {
                     std::lock_guard lock{mutex};
                     start = consumed + (consumed > 0); // Add 1 if after 1st iteration to avoid overlap
