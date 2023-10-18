@@ -50,13 +50,21 @@ int main() {
     std::atomic<size_t> consumed = 0;
     uint16_t chunkSize = [&]() { uint16_t result = 1; while (result << 1 < data.size() / MaxThreads) result <<= 1; return result; } ();
     std::vector<uint16_t> decays(MaxThreads, chunkSize);
-    int chunkSum = 0;
+    size_t chunkSum = 0;
+
+
+    auto checkpoint = [&](const uint16_t decay) {
+        if (consumed > data.size() / 4 && decay > chunkSize >> 1)
+            return data.size() / 4;
+        if (consumed > data.size() / 2 && decay > chunkSize >> 2)
+            return data.size() / 2;
+        if (consumed > (3 * data.size()) / 4 && decay > chunkSize >> 3)
+            return (3 * data.size()) / 4;
+        return data.size() - 1;
+    };
 
     auto consume = [&](const size_t &tid) {
-        if (consumed > data.size() / 4 && decays[tid] > chunkSize >> 1) decays[tid] >>= 1;
-        if (consumed > data.size() / 2 && decays[tid] > chunkSize >> 2) decays[tid] >>= 1;
-        if (consumed > (3 * data.size()) / 4 && decays[tid] > chunkSize >> 3) decays[tid] >>= 1;
-        auto bite = decays[tid];
+        auto bite = decays[tid] >>= consumed > checkpoint(decays[tid]);
         if (consumed + bite >= data.size())
             bite = data.size() - consumed - 1;
         consumed += bite;
@@ -76,11 +84,11 @@ int main() {
                     start = consumed; // Add 1 if after 1st iteration to avoid overlap
                     end = consume(tid) + start;
                     chunkSum += end - start;
-                    std::cout << "Thread " << tid << " beginning task with Chunk Size " << end - start << std::endl;
-                    std::cout << "Total processed: " << chunkSum << std::endl;
+                    // std::cout << "Thread " << tid << " beginning task with Chunk Size " << end - start << std::endl;
+                    // std::cout << "Total processed: " << chunkSum << std::endl;
                 }
 
-                for (int i = start; i < end; i++) {
+                for (auto i = start; i < end; i++) {
                     Number number = data[i];
                     
                     size_t iter = 0;
