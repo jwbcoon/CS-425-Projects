@@ -42,6 +42,7 @@ int main() {
 
     std::cerr << "Processing " << data.size() << " values ...\n";
 
+
     size_t maxIter = 0;  // Records the current maximum number of iterations
     Records records; // list of values that took maxIter iterations
     std::barrier barrier{MaxThreads};
