@@ -77,18 +77,19 @@ int main() {
         std::thread t{[&, tid]() {
             do {
                 size_t start, end;
+                std::vector<Number> workChunk;
                 {
                     std::lock_guard lock{mutex};
                     start = consumed; // Add 1 if after 1st iteration to avoid overlap
                     end = consume(tid) + start;
-                    chunkSum += end - start;
+                    workChunk.resize(end - start);
+                    data.getNext(end - start, workChunk);
+                    //chunkSum += end - start;
                     //std::cout << "Thread " << tid << " beginning task with Chunk Size " << end - start << std::endl;
                     //std::cout << "Total processed: " << chunkSum << std::endl;
                 }
 
-                for (auto i = start; i < end; i++) {
-                    Number number = data[i];
-                    
+                for (auto &number : workChunk) {
                     size_t iter = 0;
                     Number n = number;
 
