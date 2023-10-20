@@ -46,7 +46,7 @@ int main() {
     size_t maxIter = 0;  // Records the current maximum number of iterations
     Records records; // list of values that took maxIter iterations
     std::barrier barrier{MaxThreads};
-    std::mutex buildMutex, iterMutex;
+    std::mutex consumeMutex, iterMutex;
     int lastThreadID = MaxThreads - 1;
     uint16_t initChunkSize = [&]() { uint16_t result = 1; while (result << 1 < data.size() / MaxThreads) result <<= 1; return result; } ();
     std::array<size_t, 8> checkpoints = { 1, 2, 3, 4, 5, 6, 7, 8 };
@@ -62,9 +62,8 @@ int main() {
     };
 
     auto consume = [&](const size_t &tid) {
+        std::lock_guard lock{consumeMutex};
         auto bite = std::max(decays[tid] >>= shiftsByCheckpoint(decays[tid]), (uint16_t)1);
-        if (consumed + bite >= data.size())
-            bite = data.size() - consumed - 1;
         consumed += bite;
         return bite;
     };
@@ -77,17 +76,9 @@ int main() {
     for (auto tid = 0; tid < MaxThreads; tid++) {
         std::thread t{[&, tid]() {
             do {
-                size_t chunkSize;
-                std::vector<Number> workChunk;
-                {
-                    std::lock_guard lock{buildMutex};
-                    chunkSize = consume(tid);
-                    workChunk.resize(chunkSize);
-                    data.getNext(chunkSize, workChunk);
-                    //printf("Thread %u starting task with Chunk Size %zu\nTotal Processed: %zu\n", tid, chunkSize, (long unsigned)consumed);
-                }
+                size_t chunkSize = consume(tid);
 
-                for (auto &number : workChunk) {
+                for (auto &number : data.getNext(chunkSize, new std::vector<Number>(chunkSize))) {
                     size_t iter = 0;
                     Number n = number;
 
@@ -96,7 +87,6 @@ int main() {
                     //   is a palindrome, stop processing
                     while (!n.is_palindrome() && ++iter < MaxIterations) {
                         Number sum(n.size());   // Value used to store current sum of digits
-                        n.reverse(); // reverse the digits of the value
 
                         // An iterator pointing to the first digit of the reversed
                         //   value.  This iterator will be incremented to basically
@@ -153,7 +143,7 @@ int main() {
 
                     records.push_back(record);
                 }
-            } while (consumed < data.size() - 1);
+            } while (data.available() > 0);
 
             barrier.arrive_and_wait();
         }};
