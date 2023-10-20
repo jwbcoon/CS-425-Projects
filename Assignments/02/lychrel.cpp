@@ -17,7 +17,7 @@
 #include <thread>
 #include <barrier>
 #include <mutex>
-#include <cmath>
+#include <array>
 
 #include "LychrelData.h"
 
@@ -46,24 +46,23 @@ int main() {
     size_t maxIter = 0;  // Records the current maximum number of iterations
     Records records; // list of values that took maxIter iterations
     std::barrier barrier{MaxThreads};
-    std::mutex mutex;
+    std::mutex buildMutex, iterMutex;
     int lastThreadID = MaxThreads - 1;
-    uint16_t chunkSize = [&]() { uint16_t result = 1; while (result << 1 < data.size() / MaxThreads) result <<= 1; return result; } ();
-    std::vector<uint16_t> decays(MaxThreads, chunkSize);
+    uint16_t initChunkSize = [&]() { uint16_t result = 1; while (result << 1 < data.size() / MaxThreads) result <<= 1; return result; } ();
+    std::array<size_t, 8> checkpoints = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    std::array<uint16_t, MaxThreads> decays;
     std::atomic<size_t> consumed = 0;
-    size_t chunkSum = 0;
 
 
-    auto checkpoints = [&](const uint16_t decay) {
+    auto shiftsByCheckpoint = [&](const uint16_t decay) {
         int numShifts = 0;
-        if (consumed + decay > data.size() / 4 && decay > chunkSize >> 1) numShifts++;
-        if (consumed + decay > data.size() / 2 && decay > chunkSize >> 2) numShifts++;
-        if (consumed + decay > (3 * data.size()) / 4 && decay > chunkSize >> 3) numShifts++;
+        for (auto numerator : checkpoints) 
+            numShifts += (consumed + decay > ((numerator * data.size()) / checkpoints.max_size()) && decay > initChunkSize >> numerator);
         return numShifts;
     };
 
     auto consume = [&](const size_t &tid) {
-        auto bite = decays[tid] >>= checkpoints(decays[tid]);
+        auto bite = std::max(decays[tid] >>= shiftsByCheckpoint(decays[tid]), (uint16_t)1);
         if (consumed + bite >= data.size())
             bite = data.size() - consumed - 1;
         consumed += bite;
@@ -71,23 +70,21 @@ int main() {
     };
 
 
+    decays.fill(initChunkSize);
 
     // Iterate across all available data values, processing them using the 
     //   reverse-digits and sum technique described in class.
     for (auto tid = 0; tid < MaxThreads; tid++) {
         std::thread t{[&, tid]() {
             do {
-                size_t start, end;
+                size_t chunkSize;
                 std::vector<Number> workChunk;
                 {
-                    std::lock_guard lock{mutex};
-                    start = consumed; // Add 1 if after 1st iteration to avoid overlap
-                    end = consume(tid) + start;
-                    workChunk.resize(end - start);
-                    data.getNext(end - start, workChunk);
-                    //chunkSum += end - start;
-                    //std::cout << "Thread " << tid << " beginning task with Chunk Size " << end - start << std::endl;
-                    //std::cout << "Total processed: " << chunkSum << std::endl;
+                    std::lock_guard lock{buildMutex};
+                    chunkSize = consume(tid);
+                    workChunk.resize(chunkSize);
+                    data.getNext(chunkSize, workChunk);
+                    printf("Thread %u starting task with Chunk Size %zu\nTotal Processed: %zu\n", tid, chunkSize, (long unsigned)consumed);
                 }
 
                 for (auto &number : workChunk) {
@@ -149,7 +146,7 @@ int main() {
                     //   our current maximum and rebuilding our records list.
                     Record record{number, n};
                     if (iter > maxIter) {
-                        std::lock_guard lock{mutex};
+                        std::lock_guard lock{iterMutex};
                         records.clear();
                         maxIter = iter;
                     }
