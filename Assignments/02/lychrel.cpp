@@ -84,7 +84,7 @@ int main() {
                     chunkSize = consume(tid);
                     workChunk.resize(chunkSize);
                     data.getNext(chunkSize, workChunk);
-                    printf("Thread %u starting task with Chunk Size %zu\nTotal Processed: %zu\n", tid, chunkSize, (long unsigned)consumed);
+                    //printf("Thread %u starting task with Chunk Size %zu\nTotal Processed: %zu\n", tid, chunkSize, (long unsigned)consumed);
                 }
 
                 for (auto &number : workChunk) {
